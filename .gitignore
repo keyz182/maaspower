@@ -65,3 +65,7 @@ target/
 /installed.files
 
 **/chromedriver
+
+config.yaml
+schema.json
+.venv
