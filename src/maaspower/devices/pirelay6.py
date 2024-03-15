@@ -13,45 +13,61 @@ from typing_extensions import Literal
 from maaspower.maas_globals import desc
 from maaspower.maasconfig import SwitchDevice
 
-import RPi.GPIO as GPIO
+import gpiod
+from gpiod.line import Direction, Value
 
 
-GPIO.setwarnings(False)
+line_values = {
+    5: Value.INACTIVE, 
+    6: Value.INACTIVE, 
+    13: Value.INACTIVE, 
+    19: Value.INACTIVE, 
+    26: Value.INACTIVE, 
+    21: Value.INACTIVE,
+}
 
-pi_relaypins = [29, 31, 33, 35, 37, 40]
-cm4_relaypins = [5, 6, 13, 19, 26, 21]
-    
+request = gpiod.request_lines(
+    '/dev/gpiochip4',
+    consumer="maaspower",
+    config={
+        tuple(line_values.keys()): gpiod.LineSettings(direction=Direction.OUTPUT)
+    },
+    output_values=line_values,
+)
+
+relay_map = {
+    0:5,
+    1:6,
+    2:13,
+    3:19,
+    4:26,
+    5:21
+}
+
 
 @dataclass(kw_only=True)
 class PiRelay6(SwitchDevice):
     """A device controlled via a PiRelay 6"""
-
-    cm4: A[bool, desc("Running on a CM4 device")] = False
     relay_index: A[int, desc("Index of the relay")] = 0
-
     type: Literal["PiRelay6"] = "PiRelay6"
 
     def __post_init__(self):
-        if self.cm4:    
-            GPIO.setmode(GPIO.BCM)
-            self.pin = cm4_relaypins[self.relay_index]
-        else:
-            GPIO.setmode(GPIO.BOARD)
-            self.pin = pi_relaypins[self.relay_index]
-
-        GPIO.setup(self.pin,GPIO.OUT)
-        GPIO.output(self.pin, GPIO.LOW)
+        self.relay = relay_map[self.relay_index]
+    
+    def update_line(self, value):
+        line_values[self.relay] = value
+        request.set_values(line_values)
 
     def turn_on(self):
         print(f"{self.relay_index} - ON")
-        GPIO.output(self.pin,GPIO.HIGH)
+        self.update_line(Value.ACTIVE)
 
     def turn_off(self):
         print(f"{self.relay_index} - OFF")
-        GPIO.output(self.pin,GPIO.LOW)
+        self.update_line(Value.INACTIVE)
     
     def query_state(self) -> str:
-        if GPIO.input(self.pin) == 0:
+        if line_values[self.relay] == Value.INACTIVE:
             return 'off'
         else:
             return 'on'
