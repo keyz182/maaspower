@@ -18,11 +18,11 @@ from gpiod.line import Direction, Value
 
 
 line_values = {
-    5: Value.INACTIVE, 
-    6: Value.INACTIVE, 
-    13: Value.INACTIVE, 
-    19: Value.INACTIVE, 
-    26: Value.INACTIVE, 
+    5: Value.INACTIVE,
+    6: Value.INACTIVE,
+    13: Value.INACTIVE,
+    19: Value.INACTIVE,
+    26: Value.INACTIVE,
     21: Value.INACTIVE,
 }
 
@@ -50,10 +50,15 @@ class PiRelay6(SwitchDevice):
     """A device controlled via a PiRelay 6"""
     relay_index: A[int, desc("Index of the relay")] = 0
     type: Literal["PiRelay6"] = "PiRelay6"
+    default_state: A[bool, desc("Default relay state on startup")] = False
 
     def __post_init__(self):
         self.relay = relay_map[self.relay_index]
-    
+        if self.default_state:
+            self.turn_on()
+        else:
+            self.turn_off()
+
     def update_line(self, value):
         line_values[self.relay] = value
         request.set_values(line_values)
